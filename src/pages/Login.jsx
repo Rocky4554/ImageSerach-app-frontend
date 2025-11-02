@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authAPI } from '../api/client';
 
@@ -7,11 +7,23 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://image-serach-app-backen
 
 function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data } = useQuery({
+  // Check for OAuth errors in the URL
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error) {
+      setError('Authentication failed. Please try again.');
+    }
+  }, [searchParams]);
+
+  const { data, isPending } = useQuery({
     queryKey: ['currentUser'],
     queryFn: authAPI.getCurrentUser,
     retry: false,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -20,8 +32,23 @@ function Login() {
     }
   }, [data, navigate]);
 
-  const handleLogin = (provider) => {
-    window.location.href = `${API_URL}/auth/${provider}`;
+  const handleLogin = async (provider) => {
+    try {
+      setIsLoading(true);
+      setError('');
+      
+      if (provider === 'google') {
+        authAPI.loginWithGoogle();
+      } else if (provider === 'github') {
+        authAPI.loginWithGithub();
+      } else if (provider === 'facebook') {
+        window.location.href = `${API_URL}/auth/${provider}`;
+      }
+    } catch (err) {
+      setError('Failed to initiate login. Please try again.');
+      console.error('Login error:', err);
+      setIsLoading(false);
+    }
   };
 
   return (
